@@ -1,15 +1,24 @@
+import redis
+
 from typing import List
 from fastapi import FastAPI, HTTPException, Request, Depends
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from fastapi_jwt_auth.exceptions import AuthJWTException
 from fastapi.middleware.cors import CORSMiddleware
-from settings import Settings
 
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, Counter
+from prometheus_fastapi_instrumentator import Instrumentator
+
+from settings import Settings
 from schemas import Client
 from fastapi_jwt_auth import AuthJWT
 from users import User, UserLogin, Profile
 
 from settings import JWT_EXPIRE, ADMIN_PASSWORD, ADMIN_USERNAME 
+rd = redis.Redis(host='redis', port=6379, db=0, charset="utf-8", decode_responses=True)
+
+url_redirection_counter = Counter('url_shortened_total_http_request', 'Total HTTP Requests', ['method', 'endpoint'])
+url_shortened_counter = Counter('url_shortened_total_url_shortered', 'Number of URL shortenings')
 
 app = FastAPI()
 
@@ -20,6 +29,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+Instrumentator().instrument(app).expose(app)
 
 @AuthJWT.load_config
 def get_config():
@@ -178,3 +189,8 @@ async def delete_client(client_id: str, Authorize: AuthJWT = Depends()):
             return True
         raise HTTPException(status_code=404, detail=f"tag {client_id} not found")
     raise HTTPException(status_code=401, detail=f"You dont have permissions to delete.")
+
+
+@app.get('/metrics')
+async def metrics():
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)

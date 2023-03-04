@@ -17,8 +17,6 @@ from users import User, UserLogin, Profile
 from settings import JWT_EXPIRE, ADMIN_PASSWORD, ADMIN_USERNAME 
 rd = redis.Redis(host='redis', port=6379, db=0, charset="utf-8", decode_responses=True)
 
-url_redirection_counter = Counter('url_shortened_total_http_request', 'Total HTTP Requests', ['method', 'endpoint'])
-url_shortened_counter = Counter('url_shortened_total_url_shortered', 'Number of URL shortenings')
 
 app = FastAPI()
 

@@ -3,18 +3,18 @@ import redis
 from typing import List
 from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.responses import JSONResponse, Response
+from fastapi_jwt_auth import AuthJWT
 from fastapi_jwt_auth.exceptions import AuthJWTException
 from fastapi.middleware.cors import CORSMiddleware
 
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, Counter
 from prometheus_fastapi_instrumentator import Instrumentator
 
-from settings import Settings
-from schemas import Client
-from fastapi_jwt_auth import AuthJWT
-from users import User, UserLogin, Profile
+from .users import User, UserLogin, Profile
+from .schemas import Client
+from .settings import JWT_EXPIRE, ADMIN_PASSWORD, ADMIN_USERNAME, Settings
 
-from settings import JWT_EXPIRE, ADMIN_PASSWORD, ADMIN_USERNAME 
+
 rd = redis.Redis(host='redis', port=6379, db=0, charset="utf-8", decode_responses=True)
 
 

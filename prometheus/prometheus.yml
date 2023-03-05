@@ -1,11 +1,11 @@
 global:
-  scrape_interval: 15s
-  evaluation_interval: 15s
+  scrape_interval: 45s
+  evaluation_interval: 45s
 
 
 scrape_configs:
   - job_name: transaction-log
-    scrape_interval: 15s
+    scrape_interval: 45s
     static_configs:
       - targets:
           - transaction-log_1:8000

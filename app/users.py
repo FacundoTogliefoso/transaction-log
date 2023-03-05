@@ -7,7 +7,7 @@ from passlib.context import CryptContext
 from bson import ObjectId
 from pydantic import BaseModel
 
-from settings import DATABASE_NAME, DATABASE_URL
+from .settings import DATABASE_NAME, DATABASE_URL
 
 
 client = AsyncIOMotorClient(DATABASE_URL)

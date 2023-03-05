@@ -1,11 +1,12 @@
+import time
 from datetime import datetime
 from typing import Optional, List
 from motor.motor_asyncio import AsyncIOMotorClient
 from odmantic import Model, AIOEngine, EmbeddedModel
 from bson import ObjectId
-import time
-from settings import DATABASE_NAME, DATABASE_URL
-from utils import paginated_payload
+
+from .settings import DATABASE_NAME, DATABASE_URL
+from .utils import paginated_payload
 
 
 client = AsyncIOMotorClient(DATABASE_URL)
@@ -53,7 +54,7 @@ class Client(Model):
     lastname: Optional[str]
     transactions: Optional[List[Transactions]]
     balance: Optional[int]
-    expenses: Optional[Expenses]
+    expenses: Optional[List[Expenses]]
     created: Optional[int]
     modified: Optional[int]
 

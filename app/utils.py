@@ -1,3 +1,6 @@
+import json
+
+
 async def paginated_payload(data, count, total_pages, end, page_number):
     payload = {
         "data": data,
@@ -21,3 +24,9 @@ async def paginated_payload(data, count, total_pages, end, page_number):
             payload["previous"] = None
         payload["next"] = page_number + 1
     return payload
+
+
+async def open_transaction_file():
+    with open("./transaction.json") as f:
+        transactions = json.load(f)
+        return transactions

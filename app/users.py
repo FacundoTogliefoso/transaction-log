@@ -41,9 +41,11 @@ class User(Model):
     email: Optional[str]
     password: Optional[str]
     profile: Optional[Profile]
+    balance: Optional[float] = 0
 
     async def save(self):
-        self.password = encrypt_password(self.password)
+        if self.id is None:
+            self.password = encrypt_password(self.password)
         await engine.save(self)
 
     @classmethod

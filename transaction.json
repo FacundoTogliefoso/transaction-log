@@ -1,0 +1,30 @@
+[
+    {
+        "id": 1,
+        "description": "Salary",
+        "amount": 5000.0,
+        "date": "2022-02-28",
+        "type": "deposit"
+    },
+    {
+        "id": 2,
+        "description": "Rent",
+        "amount": 1500.0,
+        "date": "2022-03-01",
+        "type": "expense"
+    },
+    {
+        "id": 3,
+        "description": "Groceries",
+        "amount": 200.0,
+        "date": "2022-03-02",
+        "type": "expense"
+    },
+    {
+        "id": 4,
+        "description": "Withdrawal",
+        "amount": 1000.0,
+        "date": "2022-03-03",
+        "type": "withdrawal"
+    }
+]

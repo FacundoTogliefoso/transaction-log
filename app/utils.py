@@ -4,14 +4,15 @@ import time
 
 async def create_transaction_payload(transaction):
     created = transaction.created
+    assigned = await transaction.assigned()
     craeted_formated = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(created))
     transaction_payload = {
         "description": transaction.description,
         "amount": transaction.amount,
-
         "type": transaction.type,
         "date": transaction.date,
-
+        "completed": transaction.completed,
+        "assigned": assigned,
         "created": craeted_formated,
         "modified": transaction.modified,
         "id": str(transaction.id)
@@ -42,12 +43,6 @@ async def paginated_payload(data, count, total_pages, end, page_number):
             payload["previous"] = None
         payload["next"] = page_number + 1
     return payload
-
-
-async def open_transaction_file():
-    with open("./transaction.json") as f:
-        transactions = json.load(f)
-        return transactions
 
 
 async def process_transactions(user, current_user_id, transaction_dict, transaction):

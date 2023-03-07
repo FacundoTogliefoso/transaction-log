@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, Counter
 from prometheus_fastapi_instrumentator import Instrumentator
 
-from .utils import process_transactions, open_transaction_file
+from .utils import process_transactions
 from .users import User, UserLogin, Profile
 from .schemas import Transaction
 from .settings import JWT_EXPIRE, ADMIN_PASSWORD, ADMIN_USERNAME, Settings

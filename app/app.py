@@ -2,7 +2,7 @@ import redis
 import json
 
 from typing import List
-from fastapi import FastAPI, HTTPException, Request, Depends
+from fastapi import FastAPI, HTTPException, Request, Depends, UploadFile, File
 from fastapi.responses import JSONResponse, Response
 from fastapi_jwt_auth import AuthJWT
 from fastapi_jwt_auth.exceptions import AuthJWTException
@@ -131,10 +131,11 @@ async def delete_user(user_id: str, Authorize: AuthJWT = Depends()):
 #################################
 
 @app.post("/transactions", response_description="Create a transaction.")
-async def upload_transactions(Authorize: AuthJWT = Depends()):
+async def upload_transactions(file: UploadFile = File(...), Authorize: AuthJWT = Depends()):
     Authorize.jwt_required()
     current_user_id = Authorize.get_raw_jwt().get('user_id')
-    transactions_list = await open_transaction_file()
+    content = await file.read()
+    transactions_list = json.loads(content.decode('utf-8'))
 
     user = await User.get(idx=current_user_id)
     user.balance += sum(t["amount"] for t in transactions_list if t["type"] == "deposit")
@@ -157,16 +158,16 @@ async def list_transactions(order_by: str = "-date", search_by: str = '', search
         start = page_number * page_size
     else:
         start = (page_number - 1)  * page_size
-
+    # Planning to add redis here for cacheing queries depending on search_by, order and user
     orders = {
         "created": Transaction.created,
         "-created": Transaction.created.desc(),
         "description": Transaction.description,
         "amount": Transaction.amount,
+        "-amount": Transaction.amount.desc(),
         "date": Transaction.timestamp_date,
         "-date": Transaction.timestamp_date.desc(),
         "type": Transaction.type,
-        "assigned_id": Transaction.assigned_id,
         "id": Transaction.id,
     }
 
@@ -185,7 +186,12 @@ async def list_transactions(order_by: str = "-date", search_by: str = '', search
                 current_profile=current_profile
             )
         else:
-            transactions = await Transaction.list_all(order_by=orders.get(order_by), start=start, limit=page_size, page_number=page_number)
+            transactions = await Transaction.list_all(
+                order_by=orders.get(order_by), 
+                start=start, 
+                limit=page_size, 
+                page_number=page_number
+            )
         if transactions:
             return transactions
         raise HTTPException(status_code=401, detail=f"Transactions not found")
@@ -204,7 +210,13 @@ async def list_transactions(order_by: str = "-date", search_by: str = '', search
                 current_profile=current_profile
             ) 
         else:
-            transactions = await Transaction.get_by_user(order_by=orders.get(order_by), user_id=current_user_id, start=start, limit=page_size, page_number=page_number)
+            transactions = await Transaction.get_by_user(
+                order_by=orders.get(order_by), 
+                user_id=current_user_id, 
+                start=start, 
+                limit=page_size, 
+                page_number=page_number
+            )
         if transactions:
             return transactions
         raise HTTPException(status_code=401, detail=f"Transactions not found")

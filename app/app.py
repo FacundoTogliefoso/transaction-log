@@ -8,20 +8,18 @@ from fastapi_jwt_auth import AuthJWT
 from fastapi_jwt_auth.exceptions import AuthJWTException
 from fastapi.middleware.cors import CORSMiddleware
 
-# from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, Counter
-# from prometheus_fastapi_instrumentator import Instrumentator
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, Counter
+from prometheus_fastapi_instrumentator import Instrumentator
 
-from .users import User, UserLogin, Profile, encrypt_password
+from .utils import process_transactions, open_transaction_file
+from .users import User, UserLogin, Profile
 from .schemas import Transaction
 from .settings import JWT_EXPIRE, ADMIN_PASSWORD, ADMIN_USERNAME, Settings
-from .utils import open_transaction_file
 
 
 app = FastAPI()
 
 rd = redis.Redis(host='redis', port=6379, db=0, charset="utf-8", decode_responses=True)
-
-# transaction_create = Counter('transaction_create_total', 'Total Transaction created', ['method', 'endpoint'])
 
 app.add_middleware(
     CORSMiddleware,
@@ -31,7 +29,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Instrumentator().instrument(app).expose(app)
+transaction_create = Counter('transaction_create_total', 'Total Transaction created', ['method', 'endpoint'])
+
+Instrumentator().instrument(app).expose(app)
 
 @AuthJWT.load_config
 def get_config():
@@ -130,35 +130,26 @@ async def delete_user(user_id: str, Authorize: AuthJWT = Depends()):
 
 #################################
 
-@app.post("/transactions", response_description="Create a transaction.", response_model=Transaction)
+@app.post("/transactions", response_description="Create a transaction.")
 async def upload_transactions(Authorize: AuthJWT = Depends()):
     Authorize.jwt_required()
-
+    current_user_id = Authorize.get_raw_jwt().get('user_id')
     transactions_list = await open_transaction_file()
 
-    current_user_id = Authorize.get_raw_jwt().get('user_id')
     user = await User.get(idx=current_user_id)
     user.balance += sum(t["amount"] for t in transactions_list if t["type"] == "deposit")
     await user.save()
+    # Should be replaced for a celery task
     for transaction_dict in transactions_list:
-        if transaction_dict["type"] == "withdrawal" or transaction_dict["type"] == "expense":
-            if user.balance < transaction_dict["amount"]:
-                raise HTTPException(status_code=400, detail="Insufficient balance")
-            user.balance -= transaction_dict["amount"]
-            await user.save()
         transaction = Transaction()
-        for i in transaction_dict:
-            if i == "id":
-                continue
-            transaction.assigned_id = current_user_id
-            setattr(transaction, i, transaction_dict[i])
-            await transaction.save()
-            # transaction_create.inc()
-    return Response()
+        transaction = await process_transactions(user=user, current_user_id=current_user_id, transaction_dict=transaction_dict, transaction=transaction)
+        transaction_create.labels(method='POST', endpoint=f"/{transaction}").inc()
+    return {"status": "ok", "message": "All transactions saved correctly"}
+
 
 
 @app.get("/transactions", response_description="List all transactions.")
-async def list_transactions(page_size: int = 10, page_number: int = 1, Authorize: AuthJWT = Depends()):
+async def list_transactions(order_by: str = "-date", search_by: str = '', search: str = '', from_date: int = None, to_date: int = None, page_size: int = 10, page_number: int = 1, Authorize: AuthJWT = Depends()):
     Authorize.jwt_required()
     current_profile = Authorize.get_raw_jwt().get('profile')
     current_user_id = Authorize.get_raw_jwt().get('user_id')
@@ -166,18 +157,59 @@ async def list_transactions(page_size: int = 10, page_number: int = 1, Authorize
         start = page_number * page_size
     else:
         start = (page_number - 1)  * page_size
-    if current_profile == Profile.admin:    
-        transactions = await Transaction.list_all(start=start, limit=page_size, page_number=page_number)
+
+    orders = {
+        "created": Transaction.created,
+        "-created": Transaction.created.desc(),
+        "description": Transaction.description,
+        "amount": Transaction.amount,
+        "date": Transaction.timestamp_date,
+        "-date": Transaction.timestamp_date.desc(),
+        "type": Transaction.type,
+        "assigned_id": Transaction.assigned_id,
+        "id": Transaction.id,
+    }
+
+    if current_profile == Profile.admin:
+        if bool(search):
+            transactions = await Transaction.search(
+                search=search, 
+                search_by=search_by, 
+                from_date=from_date, 
+                to_date=to_date, 
+                start=start, 
+                limit=page_size, 
+                page_number=page_number, 
+                order_by=orders.get(order_by), 
+                user_id=current_user_id, 
+                current_profile=current_profile
+            )
+        else:
+            transactions = await Transaction.list_all(order_by=orders.get(order_by), start=start, limit=page_size, page_number=page_number)
         if transactions:
             return transactions
         raise HTTPException(status_code=401, detail=f"Transactions not found")
-    else:    
-        transactions = await Transaction.get_by_user(user_id=current_user_id, start=start, limit=page_size, page_number=page_number)
+    else:   
+        if bool(search):
+            transactions = await Transaction.search(
+                search=search, 
+                search_by=search_by, 
+                from_date=from_date, 
+                to_date=to_date, 
+                start=start, 
+                limit=page_size, 
+                page_number=page_number, 
+                order_by=orders.get(order_by), 
+                user_id=current_user_id, 
+                current_profile=current_profile
+            ) 
+        else:
+            transactions = await Transaction.get_by_user(order_by=orders.get(order_by), user_id=current_user_id, start=start, limit=page_size, page_number=page_number)
         if transactions:
             return transactions
         raise HTTPException(status_code=401, detail=f"Transactions not found")
 
 
-# @app.get('/metrics')
-# async def metrics():
-#     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+@app.get('/metrics')
+async def metrics():
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)

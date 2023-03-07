@@ -85,10 +85,14 @@ class Transaction(Model):
             transactions = await engine.find(Transaction, query.and_(Transaction.created >= from_date, Transaction.created <= to_date), sort=order_by)
             count = await engine.count(Transaction, Transaction.assigned_id == user_id)
 
-        elif search_by == "type" or search_by == "description":
-            transactions = await engine.find(Transaction, query.match(Transaction.assigned_id, f".*{search}.*"), sort=order_by, skip=start, limit=limit)
-            count = await engine.count(Transaction, Transaction.assigned_id == user_id, f=".*{search}.*")
-        
+        elif search_by == "type":
+            transactions = await engine.find(Transaction, query.match(Transaction.type, f".*{search}.*"), sort=order_by, skip=start, limit=limit)
+            count = await engine.count(Transaction, query.match(Transaction.type, f".*{search}.*"), Transaction.assigned_id == user_id)
+
+        elif search_by == "description":
+            transactions = await engine.find(Transaction, query.match(Transaction.description, f".*{search}.*"), sort=order_by, skip=start, limit=limit)
+            count = await engine.count(Transaction, query.match(Transaction.description, f".*{search}.*"), Transaction.assigned_id == user_id)
+
         end = start + limit
         total_pages = round(count/limit)
         payload_paginated = await paginated_payload(data=transactions, count=count, total_pages=total_pages, end=end, page_number=page_number)

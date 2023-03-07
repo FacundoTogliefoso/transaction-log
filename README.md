@@ -33,3 +33,4 @@
 
 - http://127.0.0.1:8000/docs or http://127.0.0.1:8000/redoc
 
+![Captura de Pantalla 2023-03-07 a la(s) 19 10 12](https://user-images.githubusercontent.com/73501272/223565020-63c8fa68-b7ad-43f8-98e2-8842df0048d5.png)
